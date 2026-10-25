@@ -2,8 +2,8 @@
 
 # android-dock
 
-An iOS StandBy–style dock for Android. Put your phone on a wireless charger and it shows a
-full-screen, OLED-black display: a big clock with the essentials beside it, and controls one tap away.
+An iOS StandBy–style dock for Android, as a screen saver. Put your phone on a wireless charger and it shows
+a full-screen, OLED-black display: a big clock with the essentials beside it, and controls one tap away.
 
 Always visible:
 
@@ -19,7 +19,8 @@ Tap anywhere to reveal the controls (they fade back after 20 seconds):
 - **Now playing**: album art and play/pause/skip for whatever is playing
 
 It also has a red **night mode** that kicks in automatically in a dark room, a burn-in shift that
-nudges the layout every minute, and it closes itself when you lift the phone off the charger.
+nudges the layout every minute. Android starts and stops it with the charger, so nothing runs in the
+background and there's no permanent notification.
 
 ## Install
 
@@ -30,8 +31,11 @@ confirm the first update, and after that they install silently. Updates never in
 ## Setup
 
 1. Install the app (above), or build it yourself with `./gradlew :app:installDebug`.
-2. Open **Dock** and allow everything in the *Setup* list. "Display over other apps" and
-   "Full-screen alerts" are what let it pop up by itself over the lock screen.
+2. Open **Dock** and go through the *Setup* list. **Screen saver** opens Android's screen saver settings:
+   pick Dock, set "When to start" to "While charging", and on Pixels turn off **Low light mode** (it swaps any
+   screen saver for Google's clock in the dark; Dock has its own red night mode). Dock stays dark on cables unless you turn off
+   "Wireless chargers only". If Android says notification access is restricted, open Dock's App info,
+   tap ⋮ → **Allow restricted settings**, and try again.
 3. Enter your Home Assistant URL and a long-lived access token (HA → Profile → Security), then tap
    **Test & load entities**.
 4. Pick your entities with the list buttons. The picker searches everything and puts likely
@@ -49,6 +53,8 @@ adb reverse tcp:8124 tcp:8124   # then use http://localhost:8124 and any token i
 ```
 
 To fake a wireless charger: `adb shell dumpsys battery set wireless 1` (undo with `adb shell dumpsys battery reset`).
+To see the screen saver, tap Preview in Android's screen saver settings, or let the screen time out while
+charging (with Developer options → Stay awake turned off).
 
 ## Releases
 

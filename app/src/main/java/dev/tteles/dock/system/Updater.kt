@@ -1,6 +1,7 @@
 package dev.tteles.dock.system
 
 import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -9,8 +10,18 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.os.Build
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
 import dev.tteles.dock.BuildConfig
+import dev.tteles.dock.DockApp
+import dev.tteles.dock.DockSession
 import dev.tteles.dock.R
+import dev.tteles.dock.SettingsActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -26,6 +37,7 @@ import java.util.concurrent.TimeUnit
 object Updater {
     private const val TAG = "Updater"
     const val NOTIF_UPDATE = 3
+    const val CHANNEL_UPDATES = "updates"
 
     data class Release(val versionCode: Int, val name: String, val apkUrl: String)
 
@@ -96,6 +108,32 @@ object Updater {
     }
 }
 
+/** Checks GitHub every few hours. */
+class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val cfg = DockApp.instance.prefs.config.value
+        if (!cfg.autoUpdate || !applicationContext.packageManager.canRequestPackageInstalls()) return Result.success()
+        // Installing restarts the app, so never pull the dock out from under someone.
+        if (DockSession.showing > 0) return Result.retry()
+        return try {
+            Log.i("Updater", Updater.checkAndInstall(applicationContext))
+            Result.success()
+        } catch (e: Exception) {
+            Log.w("Updater", "Update check failed", e)
+            Result.retry()
+        }
+    }
+
+    companion object {
+        fun schedule(context: Context) {
+            val request = PeriodicWorkRequestBuilder<UpdateWorker>(6, TimeUnit.HOURS)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork("update", ExistingPeriodicWorkPolicy.KEEP, request)
+        }
+    }
+}
+
 /** Hears back from the package installer; asks the user via a notification when Android insists. */
 class InstallResultReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -109,16 +147,21 @@ class InstallResultReceiver : BroadcastReceiver() {
         @Suppress("DEPRECATION")
         val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
         confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (SettingsActivity.resumed) return context.startActivity(confirm)
         val pi = PendingIntent.getActivity(
             context, 0, confirm, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val n = Notification.Builder(context, ChargingMonitorService.CHANNEL_LAUNCH)
+        val nm = context.getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(Updater.CHANNEL_UPDATES, "Updates", NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        val n = Notification.Builder(context, Updater.CHANNEL_UPDATES)
             .setSmallIcon(R.drawable.ic_stat_dock)
             .setContentTitle("Dock update ready")
             .setContentText("Tap to install")
             .setContentIntent(pi)
             .setAutoCancel(true)
             .build()
-        context.getSystemService(NotificationManager::class.java).notify(Updater.NOTIF_UPDATE, n)
+        nm.notify(Updater.NOTIF_UPDATE, n)
     }
 }

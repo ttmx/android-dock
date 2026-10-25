@@ -19,8 +19,6 @@ data class DockConfig(
     val toggles: List<String> = emptyList(),
     val weather: String = "",
     val wirelessOnly: Boolean = true,
-    val autoLaunch: Boolean = true,
-    val closeOnUnplug: Boolean = true,
     val nightMode: Boolean = true,
     val use24h: Boolean = true,
     val autoUpdate: Boolean = true,
@@ -46,8 +44,6 @@ class Prefs(context: Context) {
         toggles = sp.getString("toggles", "")!!.splitIds(),
         weather = sp.getString("weather", "")!!,
         wirelessOnly = sp.getBoolean("wirelessOnly", true),
-        autoLaunch = sp.getBoolean("autoLaunch", true),
-        closeOnUnplug = sp.getBoolean("closeOnUnplug", true),
         nightMode = sp.getBoolean("nightMode", true),
         use24h = sp.getBoolean("use24h", true),
         autoUpdate = sp.getBoolean("autoUpdate", true),
@@ -68,8 +64,6 @@ class Prefs(context: Context) {
             .putString("toggles", c.toggles.joinToString(","))
             .putString("weather", c.weather.trim())
             .putBoolean("wirelessOnly", c.wirelessOnly)
-            .putBoolean("autoLaunch", c.autoLaunch)
-            .putBoolean("closeOnUnplug", c.closeOnUnplug)
             .putBoolean("nightMode", c.nightMode)
             .putBoolean("use24h", c.use24h)
             .putBoolean("autoUpdate", c.autoUpdate)

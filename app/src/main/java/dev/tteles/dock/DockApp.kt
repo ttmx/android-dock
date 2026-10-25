@@ -1,8 +1,9 @@
 package dev.tteles.dock
 
 import android.app.Application
+import android.app.NotificationManager
 import dev.tteles.dock.ha.HomeAssistant
-import dev.tteles.dock.system.ChargingMonitorService
+import dev.tteles.dock.system.UpdateWorker
 
 class DockApp : Application() {
     lateinit var prefs: Prefs
@@ -15,7 +16,12 @@ class DockApp : Application() {
         instance = this
         prefs = Prefs(this)
         ha = HomeAssistant(prefs)
-        ChargingMonitorService.start(this)
+        UpdateWorker.schedule(this)
+        // Left over from the old charger watcher.
+        getSystemService(NotificationManager::class.java).apply {
+            deleteNotificationChannel("monitor")
+            deleteNotificationChannel("launch")
+        }
     }
 
     companion object {

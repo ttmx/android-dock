@@ -1,14 +1,14 @@
 package dev.tteles.dock
 
 import android.Manifest
-import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.tteles.dock.system.ChargingMonitorService
 import dev.tteles.dock.system.DockNotificationListener
 import dev.tteles.dock.system.Updater
 import dev.tteles.dock.ui.DockTheme
@@ -59,55 +58,52 @@ class SettingsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        resumed = true
         resumes++
-        ChargingMonitorService.start(this)
+    }
+
+    override fun onPause() {
+        resumed = false
+        super.onPause()
     }
 
     private fun setupItems(): List<SetupItem> {
-        val nm = getSystemService(NotificationManager::class.java)
-        val pm = getSystemService(PowerManager::class.java)
-        return buildList {
-            if (Build.VERSION.SDK_INT >= 33) add(
-                SetupItem(
-                    "Notifications", "Keeps the charger watcher running",
-                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
-                ) { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) }
-            )
-            add(
-                SetupItem(
-                    "Display over other apps", "Lets the dock pop up by itself when you start charging",
-                    Settings.canDrawOverlays(this@SettingsActivity),
-                ) { open(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, withPackage = true) }
-            )
-            if (Build.VERSION.SDK_INT >= 34) add(
-                SetupItem(
-                    "Full-screen alerts", "Lets the dock appear over the lock screen",
-                    nm.canUseFullScreenIntent(),
-                ) { open(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, withPackage = true) }
-            )
-            add(
-                SetupItem(
-                    "Notification access", "Shows your notifications and what's playing",
-                    DockNotificationListener.isEnabled(this@SettingsActivity),
-                ) { open(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
-            )
-            add(
-                SetupItem(
-                    "Unrestricted battery", "Stops Android from killing the charger watcher",
-                    pm.isIgnoringBatteryOptimizations(packageName),
-                ) {
-                    @Suppress("BatteryLife")
-                    open(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, withPackage = true)
-                }
-            )
-            add(
-                SetupItem(
-                    "Install updates", "Lets the app update itself from GitHub",
-                    packageManager.canRequestPackageInstalls(),
-                ) { open(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, withPackage = true) }
-            )
-        }
+        val listener = DockNotificationListener.isEnabled(this)
+        val notify = Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val installs = packageManager.canRequestPackageInstalls()
+        return listOf(
+            SetupItem("Screen saver", "Pick Dock, show it while charging, and turn off Low light mode", isScreenSaver()) {
+                open(Settings.ACTION_DREAM_SETTINGS)
+            },
+            SetupItem(
+                "Notification access",
+                if (listener) "Shows your notifications and what's playing"
+                else "If Android blocks it: App info → ⋮ → Allow restricted settings",
+                listener,
+            ) { open(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
+            SetupItem("Install updates", "Lets the app update itself from GitHub", installs && notify) {
+                if (!installs) open(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, withPackage = true)
+                // Needed to ask for the first update's confirmation from the background.
+                else notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            },
+        )
     }
+
+    /**
+     * Whether the system screen saver is on, set to Dock, and starts while charging or docked. Pixel's
+     * Low light mode swaps any screen saver for its own clock in the dark, so that has to be off too.
+     */
+    private fun isScreenSaver(): Boolean = runCatching {
+        val cr = contentResolver
+        val dock = ComponentName(this, DockDream::class.java)
+        Settings.Secure.getInt(cr, "screensaver_enabled", 0) == 1 &&
+            Settings.Secure.getString(cr, "screensaver_components").orEmpty().split(',')
+                .any { ComponentName.unflattenFromString(it) == dock } &&
+            (Settings.Secure.getInt(cr, "screensaver_activate_on_sleep", 0) == 1 ||
+                Settings.Secure.getInt(cr, "screensaver_activate_on_dock", 0) == 1) &&
+            runCatching { Settings.Secure.getInt(cr, "low_light_display_behavior_enabled", 0) }.getOrDefault(0) == 0
+    }.onFailure { Log.w("Settings", "Can't read screen saver settings", it) }.getOrDefault(false)
 
     private fun open(action: String, withPackage: Boolean = false) {
         val intent = Intent(action)
@@ -115,5 +111,11 @@ class SettingsActivity : ComponentActivity() {
         runCatching { startActivity(intent) }.onFailure {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
+    }
+
+    companion object {
+        @Volatile
+        var resumed = false
+            private set
     }
 }
