@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # publishing releases
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and lint
+        run: ./gradlew :app:assembleDebug :app:lintDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+
+      # Every push to main becomes a release; the app updates itself from the latest one.
+      - name: Build signed release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DOCK_KEYSTORE_BASE64 }}
+          DOCK_KEYSTORE_PASSWORD: ${{ secrets.DOCK_KEYSTORE_PASSWORD }}
+          DOCK_KEY_ALIAS: ${{ secrets.DOCK_KEY_ALIAS }}
+          DOCK_KEY_PASSWORD: ${{ secrets.DOCK_KEY_PASSWORD }}
+        run: |
+          # Offset by one so the first CI build outranks local builds (versionCode 1).
+          echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 1))" >> "$GITHUB_ENV"
+          export VERSION_CODE=$((GITHUB_RUN_NUMBER + 1))
+          export DOCK_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$DOCK_KEYSTORE_FILE"
+          ./gradlew :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "android-dock-$VERSION_CODE.apk"
+
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v0.$VERSION_CODE" "android-dock-$VERSION_CODE.apk" \
+            --title "Dock 0.$VERSION_CODE" --generate-notes --target "$GITHUB_SHA"
