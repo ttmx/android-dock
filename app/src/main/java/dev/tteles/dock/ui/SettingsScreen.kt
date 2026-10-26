@@ -190,9 +190,7 @@ fun SettingsScreen(
             EntityField("Weather", config.weather, Kinds.weather, entities) { v -> update { it.copy(weather = v) } }
 
             Section("Behaviour")
-            Toggle("Open automatically", "When the phone starts charging", config.autoLaunch) { v -> update { it.copy(autoLaunch = v) } }
-            Toggle("Wireless chargers only", "Ignore cables", config.wirelessOnly) { v -> update { it.copy(wirelessOnly = v) } }
-            Toggle("Close when unplugged", null, config.closeOnUnplug) { v -> update { it.copy(closeOnUnplug = v) } }
+            Toggle("Wireless chargers only", "Stay dark on cables", config.wirelessOnly) { v -> update { it.copy(wirelessOnly = v) } }
             Toggle("Red night mode", "Dims to red in a dark room", config.nightMode) { v -> update { it.copy(nightMode = v) } }
             Toggle("24-hour clock", null, config.use24h) { v -> update { it.copy(use24h = v) } }
 
