@@ -193,6 +193,7 @@ fun SettingsScreen(
             Toggle("Wireless chargers only", "Stay dark on cables", config.wirelessOnly) { v -> update { it.copy(wirelessOnly = v) } }
             Toggle("Red night mode", "Dims to red in a dark room", config.nightMode) { v -> update { it.copy(nightMode = v) } }
             Toggle("24-hour clock", null, config.use24h) { v -> update { it.copy(use24h = v) } }
+            Toggle("Show weather", "Next to the date", config.showWeather) { v -> update { it.copy(showWeather = v) } }
 
             Section("Updates")
             Toggle("Install updates automatically", "From GitHub releases, never while the dock is open", config.autoUpdate) { v ->

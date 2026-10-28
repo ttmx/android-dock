@@ -114,7 +114,7 @@ fun DateLine(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
-    val weather = states[config.weather]?.takeIf { it.available && config.haConfigured }
+    val weather = states[config.weather]?.takeIf { it.available && config.haConfigured && config.showWeather }
     Column(modifier) {
         Text(
             buildAnnotatedString {
