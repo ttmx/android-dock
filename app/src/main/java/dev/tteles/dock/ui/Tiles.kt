@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -187,14 +188,17 @@ fun ClimateTile(e: EntityState, call: CallService, modifier: Modifier) {
                             pending = t
                             call("climate", "set_temperature", e.id, JSONObject().put("temperature", t))
                         }
-                        Text(
-                            "${formatNumber(shown)}°",
-                            color = if (on) Color.White else DockColors.Dim,
-                            fontSize = if (compact) 30.sp else 44.sp, fontWeight = FontWeight.Light,
-                            maxLines = 1, softWrap = false,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center,
-                        )
+                        BoxWithConstraints(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            val text = "${formatNumber(shown)}°"
+                            // Shrink to fit between the buttons: Light digits are about 0.55em wide.
+                            val fit = with(LocalDensity.current) { (maxWidth - 8.dp).toSp() / (text.length * 0.55f) }
+                            Text(
+                                text,
+                                color = if (on) Color.White else DockColors.Dim,
+                                fontSize = minOf(if (compact) 30f else 44f, fit.value).sp, fontWeight = FontWeight.Light,
+                                maxLines = 1, softWrap = false,
+                            )
+                        }
                         RoundButton(Icons.Rounded.Add, "Warmer", size = btn) {
                             val t = shown + step
                             pending = t

@@ -159,7 +159,8 @@ private fun Ambient(
     val showCar = config.haConfigured && config.carBattery.isNotBlank()
     val footer = @Composable {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            DateLine(now, config, states, nowPlaying)
+            // Weighted, so the rings are measured first and always get their full size.
+            DateLine(now, config, states, nowPlaying, Modifier.weight(1f, fill = false))
             PhoneRing(power)
             if (showCar) CarRing(config, states, haStatus)
         }
@@ -171,22 +172,21 @@ private fun Ambient(
     BoxWithConstraints(modifier) {
         if (maxWidth > maxHeight) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                BoxWithConstraints(Modifier.weight(1.25f).fillMaxHeight()) {
-                    // Leave a little side margin and ~120dp under the clock for the footer.
-                    val size = minOf(maxWidth.value / (CLOCK_EM_WIDTH + 0.1f), maxHeight.value - 120f).sp
-                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                        BigClock(now, config.use24h, size)
-                        Spacer(Modifier.height(12.dp))
-                        footer()
+                Column(Modifier.weight(1.25f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                    // Weighted, so it's measured after the footer and the clock gets whatever height is left.
+                    BoxWithConstraints(Modifier.weight(1f, fill = false)) {
+                        BigClock(now, config.use24h, clockSize(maxWidth, maxHeight))
                     }
+                    Spacer(Modifier.height(12.dp))
+                    footer()
                 }
                 peek(Modifier.weight(1f).fillMaxHeight().padding(top = 24.dp))
             }
         } else {
-            val clockSize = (maxWidth.value / (CLOCK_EM_WIDTH + 0.1f)).sp
+            val size = clockSize(maxWidth)
             Column(Modifier.fillMaxSize()) {
                 Spacer(Modifier.weight(0.3f))
-                BigClock(now, config.use24h, clockSize)
+                BigClock(now, config.use24h, size)
                 Spacer(Modifier.height(8.dp))
                 footer()
                 Spacer(Modifier.height(28.dp))
