@@ -54,7 +54,7 @@ import dev.tteles.dock.ha.EntityState
 import dev.tteles.dock.splitIds
 import kotlinx.coroutines.launch
 
-data class SetupItem(val title: String, val why: String, val granted: Boolean, val grant: () -> Unit)
+data class SetupItem(val title: String, val hint: String?, val granted: Boolean, val grant: () -> Unit)
 
 /** What a field accepts, plus a score so likely candidates float to the top of the picker. */
 class EntityKind(val domains: Set<String>, val score: (EntityState) -> Int = { 0 })
@@ -110,7 +110,7 @@ fun SettingsScreen(
             val r = loadEntities(config.haUrl, config.haToken)
             entities = r.getOrDefault(emptyList())
             testStatus = r.fold(
-                { true to "Connected · ${it.size} entities. Tap the list icons below to pick." },
+                { true to "Connected · ${it.size} entities" },
                 { false to (it.message ?: it.javaClass.simpleName) },
             )
             testing = false
@@ -127,10 +127,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Dock", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("StandBy for your Android, powered by Home Assistant", color = DockColors.Dim)
-                }
+                Text("Dock", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
                 Button(onClick = preview) { Text("Open dock") }
             }
 
@@ -144,7 +141,7 @@ fun SettingsScreen(
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(item.title, color = Color.White)
-                        Text(item.why, color = DockColors.Dim, fontSize = 13.sp)
+                        item.hint?.let { Text(it, color = DockColors.Dim, fontSize = 13.sp) }
                     }
                     if (!item.granted) FilledTonalButton(onClick = item.grant) { Text("Allow") }
                 }
@@ -168,14 +165,12 @@ fun SettingsScreen(
             Section("Car")
             Field("Name", config.carName, "Car") { v -> update { it.copy(carName = v) } }
             EntityField("Battery level", config.carBattery, Kinds.carBattery, entities) { v -> update { it.copy(carBattery = v) } }
-            EntityField(
-                "Time until charged", config.carChargeTime, Kinds.carChargeTime, entities,
-                help = "Minutes, hours, or a 'charge complete at' timestamp all work",
-            ) { v -> update { it.copy(carChargeTime = v) } }
-            EntityField(
-                "Charging status (optional)", config.carCharging, Kinds.carCharging, entities,
-                help = "Binary sensor or a sensor reading 'charging'",
-            ) { v -> update { it.copy(carCharging = v) } }
+            EntityField("Time until charged", config.carChargeTime, Kinds.carChargeTime, entities) { v ->
+                update { it.copy(carChargeTime = v) }
+            }
+            EntityField("Charging status (optional)", config.carCharging, Kinds.carCharging, entities) { v ->
+                update { it.copy(carCharging = v) }
+            }
             EntityField("Range (optional)", config.carRange, Kinds.carRange, entities) { v -> update { it.copy(carRange = v) } }
 
             Section("Home controls")
@@ -183,22 +178,19 @@ fun SettingsScreen(
             EntityField(
                 "Blinds", config.covers.joinToString(", "), Kinds.cover, entities, multi = true,
             ) { v -> update { it.copy(covers = v.splitIds()) } }
-            EntityField(
-                "Extra buttons", config.toggles.joinToString(", "), Kinds.toggle, entities, multi = true,
-                help = "Lights, switches, scenes, scripts, locks…",
-            ) { v -> update { it.copy(toggles = v.splitIds()) } }
+            EntityField("Buttons", config.toggles.joinToString(", "), Kinds.toggle, entities, multi = true) { v ->
+                update { it.copy(toggles = v.splitIds()) }
+            }
             EntityField("Weather", config.weather, Kinds.weather, entities) { v -> update { it.copy(weather = v) } }
 
             Section("Behaviour")
-            Toggle("Wireless chargers only", "Stay dark on cables", config.wirelessOnly) { v -> update { it.copy(wirelessOnly = v) } }
-            Toggle("Red night mode", "Dims to red in a dark room", config.nightMode) { v -> update { it.copy(nightMode = v) } }
+            Toggle("Wireless chargers only", null, config.wirelessOnly) { v -> update { it.copy(wirelessOnly = v) } }
+            Toggle("Red night mode", "When the room is dark", config.nightMode) { v -> update { it.copy(nightMode = v) } }
             Toggle("24-hour clock", null, config.use24h) { v -> update { it.copy(use24h = v) } }
-            Toggle("Show weather", "Next to the date", config.showWeather) { v -> update { it.copy(showWeather = v) } }
+            Toggle("Show weather", null, config.showWeather) { v -> update { it.copy(showWeather = v) } }
 
             Section("Updates")
-            Toggle("Install updates automatically", "From GitHub releases, never while the dock is open", config.autoUpdate) { v ->
-                update { it.copy(autoUpdate = v) }
-            }
+            Toggle("Install updates automatically", null, config.autoUpdate) { v -> update { it.copy(autoUpdate = v) } }
             var updateStatus by remember { mutableStateOf<String?>(null) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Version $version", color = DockColors.Dim, modifier = Modifier.weight(1f))
@@ -272,7 +264,6 @@ private fun EntityField(
     kind: EntityKind,
     entities: List<EntityState>,
     multi: Boolean = false,
-    help: String? = null,
     onChange: (String) -> Unit,
 ) {
     var picking by remember { mutableStateOf(false) }
@@ -280,7 +271,6 @@ private fun EntityField(
     Field(
         label, value,
         placeholder = kind.domains.first() + ".…",
-        help = help ?: if (entities.isEmpty()) "Test the connection above to pick from a list" else null,
         textOverride = override,
         trailing = {
             IconButton(onClick = { picking = true }, enabled = entities.isNotEmpty()) {

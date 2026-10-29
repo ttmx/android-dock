@@ -2,40 +2,36 @@
 
 # android-dock
 
-An iOS StandBy–style dock for Android, as a screen saver. Put your phone on a wireless charger and it shows
-a full-screen, OLED-black display: a big clock with the essentials beside it, and controls one tap away.
+A StandBy-style screen saver for Android that runs while the phone charges.
 
-Always visible:
+It shows:
 
-- **Clock & date**, plus weather from Home Assistant
-- **Phone battery**: level, charging state, and time until full
-- **Car battery**: level, charging state, time until full, and range, from any Home Assistant car integration
-- **Notifications**: the latest ones that fit; tap to open (unlocks first), swipe to dismiss
+- Clock, date, and optionally weather from Home Assistant
+- Phone battery, with time until full
+- Car battery, with time until full or range, from any Home Assistant car integration
+- Recent notifications (tap to open, swipe to dismiss)
 
-Tap anywhere to reveal the controls (they fade back after 20 seconds):
+Tap the screen for controls, which hide again after 20 seconds:
 
-- **Home controls**: AC (on/off and target temperature), blinds (up/stop/down with live position),
-  plus any lights, switches, scenes, scripts, or locks you choose
-- **Now playing**: album art and play/pause/skip for whatever is playing
+- AC, blinds, and any lights, switches, scenes, scripts, or locks you add
+- Media playback
 
-It also has a red **night mode** that kicks in automatically in a dark room, a burn-in shift that
-nudges the layout every minute. Android starts and stops it with the charger, so nothing runs in the
-background and there's no permanent notification.
+The screen turns red in a dark room and shifts a few pixels every minute against burn-in.
 
 ## Install
 
-Grab the APK from the [latest release](https://github.com/ttmx/android-dock/releases/latest). The app keeps
-itself up to date from GitHub releases (allow "Install updates" in its setup list). Android asks you to
-confirm the first update, and after that they install silently. Updates never install while the dock is on screen.
+Download the APK from the [latest release](https://github.com/ttmx/android-dock/releases/latest). It updates
+itself from GitHub releases once you allow "Install updates" in its setup list. Android asks you to confirm
+the first update; later ones install silently, never while the dock is on screen.
 
 ## Setup
 
 1. Install the app (above), or build it yourself with `./gradlew :app:installDebug`.
-2. Open **Dock** and go through the *Setup* list. **Screen saver** opens Android's screen saver settings:
-   pick Dock, set "When to start" to "While charging", and on Pixels turn off **Low light mode** (it swaps any
-   screen saver for Google's clock in the dark; Dock has its own red night mode). Dock stays dark on cables unless you turn off
-   "Wireless chargers only". If Android says notification access is restricted, open Dock's App info,
-   tap ⋮ → **Allow restricted settings**, and try again.
+2. Open **Dock** and go through the *Setup* list. In Android's screen saver settings, pick Dock and set
+   "When to start" to "While charging". On Pixels, also turn off **Low light mode**, which replaces any screen
+   saver with Google's clock in the dark. Dock only runs on wireless chargers unless you turn off
+   "Wireless chargers only". If notification access is restricted, open Dock's App info, tap
+   ⋮ → **Allow restricted settings**, and try again.
 3. Enter your Home Assistant URL and a long-lived access token (HA → Profile → Security), then tap
    **Test & load entities**.
 4. Pick your entities with the list buttons. The picker searches everything and puts likely

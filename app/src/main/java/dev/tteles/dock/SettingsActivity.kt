@@ -73,16 +73,15 @@ class SettingsActivity : ComponentActivity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         val installs = packageManager.canRequestPackageInstalls()
         return listOf(
-            SetupItem("Screen saver", "Pick Dock, show it while charging, and turn off Low light mode", isScreenSaver()) {
+            SetupItem("Screen saver", "Pick Dock, start while charging, turn off Low light mode", isScreenSaver()) {
                 open(Settings.ACTION_DREAM_SETTINGS)
             },
             SetupItem(
                 "Notification access",
-                if (listener) "Shows your notifications and what's playing"
-                else "If Android blocks it: App info → ⋮ → Allow restricted settings",
+                if (listener) null else "If it's blocked: App info → ⋮ → Allow restricted settings",
                 listener,
             ) { open(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
-            SetupItem("Install updates", "Lets the app update itself from GitHub", installs && notify) {
+            SetupItem("Install updates", null, installs && notify) {
                 if (!installs) open(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, withPackage = true)
                 // Needed to ask for the first update's confirmation from the background.
                 else notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)

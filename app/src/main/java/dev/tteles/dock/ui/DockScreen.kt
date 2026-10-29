@@ -247,8 +247,7 @@ private fun ControlsLayer(
             if (items.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        if (!config.haConfigured) "Connect Home Assistant in settings ⚙️"
-                        else "Pick your AC, blinds and switches in settings ⚙️",
+                        if (!config.haConfigured) "Home Assistant isn't set up" else "No controls picked",
                         color = DockColors.Dim, fontSize = 18.sp, textAlign = TextAlign.Center,
                     )
                 }
