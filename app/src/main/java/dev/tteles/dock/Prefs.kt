@@ -15,6 +15,8 @@ data class DockConfig(
     val carCharging: String = "",
     val carRange: String = "",
     val climate: String = "",
+    /** The adaptive_bedroom_ac integration's "Adaptive control" switch, if the AC has one. */
+    val adaptiveAc: String = "",
     val covers: List<String> = emptyList(),
     val toggles: List<String> = emptyList(),
     val weather: String = "",
@@ -41,6 +43,7 @@ class Prefs(context: Context) {
         carCharging = sp.getString("carCharging", "")!!,
         carRange = sp.getString("carRange", "")!!,
         climate = sp.getString("climate", "")!!,
+        adaptiveAc = sp.getString("adaptiveAc", "")!!,
         covers = sp.getString("covers", "")!!.splitIds(),
         toggles = sp.getString("toggles", "")!!.splitIds(),
         weather = sp.getString("weather", "")!!,
@@ -62,6 +65,7 @@ class Prefs(context: Context) {
             .putString("carCharging", c.carCharging.trim())
             .putString("carRange", c.carRange.trim())
             .putString("climate", c.climate.trim())
+            .putString("adaptiveAc", c.adaptiveAc.trim())
             .putString("covers", c.covers.joinToString(","))
             .putString("toggles", c.toggles.joinToString(","))
             .putString("weather", c.weather.trim())

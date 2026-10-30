@@ -211,7 +211,7 @@ private fun ControlsLayer(
 ) {
     val items = buildList<@Composable (Modifier) -> Unit> {
         if (config.haConfigured) {
-            if (config.climate.isNotBlank()) add { m -> EntityTile(config.climate, "climate", states, haStatus, callService, m) }
+            if (config.climate.isNotBlank()) add { m -> EntityTile(config.climate, "climate", states, haStatus, callService, m, config.adaptiveAc) }
             config.covers.forEach { id -> add { m -> EntityTile(id, "cover", states, haStatus, callService, m) } }
             config.toggles.forEach { id -> add { m -> EntityTile(id, "toggle", states, haStatus, callService, m) } }
         }
@@ -295,11 +295,12 @@ private fun EntityTile(
     haStatus: HaStatus,
     call: CallService,
     modifier: Modifier,
+    adaptiveAc: String = "",
 ) {
     val e = states[id]
     when {
         e == null -> MissingTile(id, haStatus, modifier)
-        kind == "climate" && e.domain == "climate" -> ClimateTile(e, call, modifier)
+        kind == "climate" && e.domain == "climate" -> ClimateTile(e, AdaptiveAc.find(adaptiveAc, states), call, modifier)
         kind == "cover" && e.domain == "cover" -> CoverTile(e, call, modifier)
         else -> ToggleTile(e, call, modifier)
     }

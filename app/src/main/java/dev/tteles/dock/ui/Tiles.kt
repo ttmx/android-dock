@@ -142,12 +142,58 @@ private fun RoundButton(
     ) { Icon(icon, desc, tint = tint, modifier = Modifier.size(size * 0.54f)) }
 }
 
+/**
+ * The adaptive_bedroom_ac integration: it steers the AC's setpoint to hold a comfort target, and
+ * pauses itself for two hours when the setpoint is changed by hand. Its other entities share the
+ * control switch's prefix.
+ */
+class AdaptiveAc(val control: EntityState, val target: EntityState?, val room: EntityState?, val status: EntityState?) {
+    val enabled get() = control.state == "on" && target?.available == true
+
+    /** Only the states worth a word on the tile. */
+    val note: String? get() = when (status?.state) {
+        "manual_override" -> "Paused"
+        "calibrating_vindstyrka" -> "Calibrating"
+        "ac_not_cooling" -> "Cool mode only"
+        "sensor_unavailable", "setpoint_unavailable" -> "No reading"
+        "command_failed" -> "Failed"
+        else -> null
+    }
+
+    companion object {
+        fun find(controlId: String, states: Map<String, EntityState>): AdaptiveAc? {
+            val control = states[controlId]?.takeIf { it.available } ?: return null
+            val prefix = controlId.substringAfter('.').removeSuffix("_adaptive_control")
+            return AdaptiveAc(
+                control,
+                states["number.${prefix}_comfort_target"],
+                states["sensor.${prefix}_room_temperature"],
+                states["sensor.${prefix}_status"],
+            )
+        }
+    }
+}
+
 @Composable
-fun ClimateTile(e: EntityState, call: CallService, modifier: Modifier) {
+fun ClimateTile(e: EntityState, adaptive: AdaptiveAc?, call: CallService, modifier: Modifier) {
     val on = e.state != "off" && e.available
-    val target = e.attrDouble("temperature")
-    val current = e.attrDouble("current_temperature")
-    val step = e.attrDouble("target_temp_step") ?: 0.5
+    // With adaptive control on, −/+ move its comfort target; setting the AC directly would pause it.
+    val auto = adaptive?.enabled == true
+    val goal = adaptive?.target?.takeIf { auto }
+    val target = if (goal != null) goal.state.toDoubleOrNull() else e.attrDouble("temperature")
+    val current = adaptive?.room?.takeIf { it.available }?.state?.toDoubleOrNull() ?: e.attrDouble("current_temperature")
+    val step = goal?.attrDouble("step") ?: e.attrDouble("target_temp_step") ?: 0.5
+    /** Sends a new target and returns what was actually sent. */
+    val setTarget = { t: Double ->
+        if (goal != null) {
+            val clamped = t.coerceIn(goal.attrDouble("min") ?: t, goal.attrDouble("max") ?: t)
+            call("number", "set_value", goal.id, JSONObject().put("value", clamped))
+            clamped
+        } else {
+            call("climate", "set_temperature", e.id, JSONObject().put("temperature", t))
+            t
+        }
+    }
     // Show the requested setpoint straight away instead of waiting for HA to echo it back.
     var pending by remember(target) { mutableStateOf<Double?>(null) }
     val shown = pending ?: target
@@ -169,8 +215,9 @@ fun ClimateTile(e: EntityState, call: CallService, modifier: Modifier) {
                     Column(Modifier.weight(1f)) {
                         Text(e.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            prettyState(e.state) + (current?.let { " · ${formatNumber(it)}°" } ?: ""),
-                            color = DockColors.Dim, fontSize = 14.sp, maxLines = 1,
+                            listOfNotNull(prettyState(e.state), current?.let { "${formatNumber(it)}°" }, adaptive?.note)
+                                .joinToString(" · "),
+                            color = DockColors.Dim, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                     }
                     RoundButton(
@@ -180,13 +227,15 @@ fun ClimateTile(e: EntityState, call: CallService, modifier: Modifier) {
                         size = btn,
                     ) { call("climate", if (on) "turn_off" else "turn_on", e.id, null) }
                 }
+                if (adaptive != null) {
+                    Spacer(Modifier.height(8.dp))
+                    AutoChip(auto, accent) { call("switch", if (auto) "turn_off" else "turn_on", adaptive.control.id, null) }
+                }
                 Spacer(Modifier.weight(1f))
                 if (shown != null) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         RoundButton(Icons.Rounded.Remove, "Colder", size = btn) {
-                            val t = shown - step
-                            pending = t
-                            call("climate", "set_temperature", e.id, JSONObject().put("temperature", t))
+                            pending = setTarget(shown - step)
                         }
                         BoxWithConstraints(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                             val text = "${formatNumber(shown)}°"
@@ -200,14 +249,26 @@ fun ClimateTile(e: EntityState, call: CallService, modifier: Modifier) {
                             )
                         }
                         RoundButton(Icons.Rounded.Add, "Warmer", size = btn) {
-                            val t = shown + step
-                            pending = t
-                            call("climate", "set_temperature", e.id, JSONObject().put("temperature", t))
+                            pending = setTarget(shown + step)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/** Turns adaptive control on and off: filled while it's steering the AC. */
+@Composable
+private fun AutoChip(on: Boolean, accent: Color, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(CircleShape)
+            .background(if (on) accent else Color(0xFF3A3A3C))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text("Auto", color = if (on) Color.Black else DockColors.Dim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

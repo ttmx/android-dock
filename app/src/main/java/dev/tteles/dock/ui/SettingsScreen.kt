@@ -83,6 +83,7 @@ object Kinds {
     val climate = EntityKind(setOf("climate", "switch", "fan"), score = {
         (if (it.domain == "climate") 3 else 0) + (if (it.has("ac", "air", "aircon", "hvac")) 2 else 0)
     })
+    val adaptiveAc = EntityKind(setOf("switch")) { if (it.id.endsWith("_adaptive_control")) 5 else 0 }
     val cover = EntityKind(setOf("cover")) { if (it.has("blind", "shade", "shutter", "estore", "curtain")) 2 else 0 }
     val toggle = EntityKind(
         setOf("light", "switch", "fan", "input_boolean", "scene", "script", "lock", "button", "input_button", "automation", "cover", "climate")
@@ -175,6 +176,9 @@ fun SettingsScreen(
 
             Section("Home controls")
             EntityField("Air conditioning", config.climate, Kinds.climate, entities) { v -> update { it.copy(climate = v) } }
+            EntityField("Adaptive AC control (optional)", config.adaptiveAc, Kinds.adaptiveAc, entities) { v ->
+                update { it.copy(adaptiveAc = v) }
+            }
             EntityField(
                 "Blinds", config.covers.joinToString(", "), Kinds.cover, entities, multi = true,
             ) { v -> update { it.copy(covers = v.splitIds()) } }

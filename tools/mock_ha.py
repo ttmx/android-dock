@@ -37,6 +37,13 @@ put("binary_sensor.model_3_charging", "on", device_class="battery_charging", fri
 put("sensor.model_3_range", 312, unit_of_measurement="km", device_class="distance", friendly_name="Model 3 Range")
 put("climate.living_room_ac", "cool", temperature=22, current_temperature=25.5, target_temp_step=0.5,
     hvac_modes=["off", "cool", "heat", "auto"], friendly_name="Living room AC")
+# The adaptive_bedroom_ac integration, steering the AC above.
+put("switch.adaptive_bedroom_ac_adaptive_control", "on", friendly_name="Adaptive Bedroom AC Adaptive control")
+put("number.adaptive_bedroom_ac_comfort_target", 23.0, min=20.0, max=28.0, step=0.5, unit_of_measurement="°C",
+    friendly_name="Adaptive Bedroom AC Comfort target")
+put("sensor.adaptive_bedroom_ac_room_temperature", 24.0, unit_of_measurement="°C", device_class="temperature",
+    friendly_name="Adaptive Bedroom AC Room temperature")
+put("sensor.adaptive_bedroom_ac_status", "holding", friendly_name="Adaptive Bedroom AC Status")
 put("cover.living_room_blinds", "open", current_position=100, friendly_name="Living room blinds")
 put("cover.bedroom_blinds", "closed", current_position=0, friendly_name="Bedroom blinds")
 put("light.desk_lamp", "on", friendly_name="Desk lamp")
@@ -69,6 +76,8 @@ async def call_service(domain, service, entity_id, data):
             s["state"] = "cool"
         elif service == "set_temperature":
             a["temperature"] = data.get("temperature", a.get("temperature"))
+    elif domain == "number" and service == "set_value":
+        s["state"] = str(data.get("value", s["state"]))
     elif domain == "cover":
         target = {"open_cover": 100, "close_cover": 0}.get(service)
         if target is not None:

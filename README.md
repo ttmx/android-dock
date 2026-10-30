@@ -40,7 +40,7 @@ the first update; later ones install silently, never while the dock is on screen
 
 ## Developing without a real Home Assistant
 
-`tools/mock_ha.py` is a tiny fake HA (WebSocket + REST) with a charging car, AC, blinds, and a lamp:
+`tools/mock_ha.py` is a tiny fake HA (WebSocket + REST) with a charging car, an AC with adaptive control, blinds, and a lamp:
 
 ```sh
 pip install websockets
